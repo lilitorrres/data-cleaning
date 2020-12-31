@@ -1,0 +1,342 @@
+---
+title: 'Tipologia y ciclo de vida de los datos: PRAC2 -  integración, limpieza, validación y análisis'
+author: "Autor: Leidy Liliana Torres Bolívar & Jose Carlos Sola Verdú"
+date: "Diciembre 2020"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+  word_document: default
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Descripción del dataset. ¿Por qué es importante y qué pregunta/problema pretende responder?
+
+
+Para la realización de este ejercicio se usará un conjunto de datos que contiene los clientes de un distribuidor mayorista. Incluye el gasto anual en unidades monetarias (mu) en diversas categorías de productos (Lacteos, carnes, congelados ETC) Se evidencia que son datos que se pueden trabajar en problemas no supervisados con métodos de agregación (clusters) ya que no cuentan con una categorización o clase.
+
+Fuente. https://www.kaggle.com/binovi/wholesale-customers-data-set
+
+
+# Integración y selección de los datos de interés a analizar.
+
+
+```{r message= FALSE, warning=FALSE}
+
+# Como primer paso se llaman las librerias necesarias para el ejercicio
+
+library(ggplot2)
+library(dplyr)
+library(dummies)
+library(kableExtra)
+library(scales)
+library(cluster)
+library(factoextra)
+library(NbClust)
+library(arules)
+library(fpc)
+
+```
+```{r message= FALSE, warning=FALSE}
+
+#Se carga el conjunto de datos el cual contiene los nombres de sus atributos.
+
+customers_data<-read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/00292/Wholesale%20customers%20data.csv", header=T, sep=",")
+attach(customers_data)
+
+#Visualizamos el data frame
+head(customers_data)
+
+```
+Descripción de las diferentes variables:
+
+FRESH: 
+    annual spending (m.u.) on fresh products (Continuous)
+    
+MILK: 
+    annual spending (m.u.) on milk products (Continuous)
+          
+GROCERY: 
+    annual spending (m.u.)on grocery products (Continuous)
+
+FROZEN: 
+    annual spending (m.u.)on frozen products (Continuous)
+
+DETERGENTS_PAPER:
+    annual spending (m.u.) on detergents and paper products (Continuous)
+              
+DELICATESSEN:
+    annual spending (m.u.)on and delicatessen products (Continuous)
+              
+CHANNEL: 
+    1=Horeca 2=Retail
+            
+REGION:
+    1=Lisnon, 2=Oporto or 3=Other
+    
+    
+```{r message= FALSE, warning=FALSE}    
+
+#Se valida la estructura de los datos
+ str(customers_data)
+```
+
+# Limpieza de los datos.
+
+## ¿Los datos contienen ceros o elementos vacíos? ¿Cómo gestionarías cada uno de estos casos?
+
+```{r message= FALSE, warning=FALSE}    
+
+#Se valida que no existan valores vacios
+colSums(is.na(customers_data))
+
+```
+Se evidencia que el set de datos no contempla valores vacíos, si embargo en caso de tener valores vacios en valores contunios se usaria la media de conjunto de datos para completa dicha información.
+
+
+## Identificación y tratamiento de valores extremos.
+
+```{r message= FALSE, warning=FALSE}  
+
+#Se hace validación de Outliers por medio de la gráfica boxplot para cada una de las variables
+boxplot(customers_data,las=2)
+
+```
+
+Como se observa hay Outliers en las medidas Fresh,Milk,Grocery,Frozen,Detergents_Paper,Delicassen lo cual podría claramente la clasificación de los datos, por eso se descartarán usando la diferencia de los percentiles 25 y 75 y calculando el IQR (Rango intercuatilico) para encontrar los rangos y descartar valore atipicos.
+
+```{r message= FALSE, warning=FALSE}  
+
+#Quitando datos atípicos de las variables Fresh,Milk,Grocery,Frozen,Detergents_Paper,Delicassen almacenandola en el df customers_data2
+customers_data2 <- customers_data
+for (x in colnames(customers_data2[3:8])){
+  qt <- quantile(customers_data[[x]], probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(customers_data2[[x]])
+  superior <-  qt[2]+1.5*iqr
+  inferior<- qt[1]-1.5*iqr
+  customers_data2<- subset(customers_data2, customers_data2[[x]] > (qt[1] - 1.5*iqr) & customers_data2[[x]] < (qt[2]+1.5*iqr))
+}
+#Se grafica nuevamente los valores atipicos usando el nuevo df
+boxplot(customers_data2, las=2)
+```
+
+Comparando las dos graficas se observa que el número de valores atipicos bajó considerablente respecto al DF original, esto sin duda ayudará a mejorar el rendieminto del modelo de agregación.
+
+
+
+
+```{r message= FALSE, warning=FALSE}  
+#Normalización de datos para manejar la misma escala en las diferentes variables
+customers_data_scale <- scale(customers_data2)
+head(customers_data_scale)
+
+```
+
+# Análisis de los datos.
+
+## Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar).
+
+```{r message= FALSE, warning=FALSE}  
+summary(customers_data)
+```
+
+
+Una vez terminada la fase de análisis y preparación de los datos. En esta fase se usaran diferentes métodos para identificar el número de clusters más óptimo, Se usará el metodo de la silueta media, 
+
+## Comprobación de la normalidad y homogeneidad de la varianza.
+
+
+
+## Aplicación de pruebas estadísticas para comparar los grupos de dato y Representación de los resultados a partir de tablas y gráficas.
+
+
+```{r message= FALSE, warning=FALSE}
+
+#El método de la silueta media el cual mide la distancia de separación entre los clústers. Nos indica como de cerca está cada punto de un clúster a puntos de los clústers vecinos.
+
+fviz_nbclust(customers_data2, kmeans, method="silhouette")
+
+```
+
+Según la grafica presentada anteriormente el mejor número de clusters serían k=2
+
+
+Ahora usando el método wss de K-Means.
+```{r message= FALSE, warning=FALSE}
+
+#Ahora usando el método wss.
+fviz_nbclust(customers_data2, kmeans, method="wss")
+
+```
+
+Al usar el metodo anterior se observa que la recomendación de clusters serían entre 3 y 4.
+
+
+Ahora usamos la función kmeansruns del paquete fpc que ejecuta el algoritmo kmeans con un conjunto de valores, para después seleccionar el valor del número de clústers que mejor funcione de acuerdo a dos criterios: la silueta media ("asw") y Calinski-Harabasz ("ch"). Usado en el ejercicio de ejemplo de la base de datos irs.
+
+```{r message= FALSE, warning=FALSE}
+
+fit_ch  <- kmeansruns(customers_data2, krange = 1:10, criterion = "ch") 
+fit_asw <- kmeansruns(customers_data2, krange = 1:10, criterion = "asw") 
+
+#asw la silueta media
+fit_ch$bestk
+#ch Calinski-Harabasz
+fit_asw$bestk
+
+```
+
+Según los resultados presentados anteriormente asw y ch recomiendan entre 2 y 3 clusters respectivamente.
+
+```{r message= FALSE, warning=FALSE}
+
+```
+
+Como los resultados del número de clusters estan entre dos y tres probaremos el algoritmo de K-Means con 2 y 3 para ver cual sería el más optimo
+
+```{r message= FALSE, warning=FALSE}
+#Con 2 clusters
+k2_scale <- kmeans(customers_data_scale, 2)
+
+#Graficamos los clusters generados con fviz_cluster
+fviz_cluster(k2_scale, data = customers_data_scale)
+
+#Con 3 clusters
+k3_scale <- kmeans(customers_data_scale, 3)
+
+#Graficamos los clusters generados con fviz_cluster
+fviz_cluster(k3_scale, data = customers_data_scale)
+
+
+```
+
+Como se obderva en las gráficas generadas con fviz_cluster claramente el mejor número de clusters es 2 ya que se puede observar claramente  la distinción entre los dos grupos, mientras que en la gráfica con 3 clusters hay algunos puntos que se solapan.
+
+Ahora vamos a identificar las caracteristicas de cada uno de los clusters identificando de a dos  variables la distribución de los dos clusters
+
+```{r message= FALSE, warning=FALSE}
+
+summary(customers_data2)
+
+k2 <- kmeans(customers_data2, 2)
+
+k2
+
+str(k2)
+
+#  Fresh y Milk
+plot(customers_data2[c(3,4)], col=k2$cluster)
+
+# Grocery y Frozen
+plot(customers_data2[c(5,6)], col=k2$cluster)
+
+# Detergents_Paper y Delicassen
+plot(customers_data2[c(7,8)], col=k2$cluster)
+
+
+```
+
+Como se observa en la graficas presentadas anteriormente sólo se puede ver una distinción entre las variables Fresh y Milk, por eso se validara Fesh vs las demás
+
+```{r message= FALSE, warning=FALSE}
+
+
+ #  Fresh y Grocery
+ plot(customers_data2[c(3,5)], col=k2$cluster)
+ 
+# Fresh y Frozen
+ plot(customers_data2[c(3,6)], col=k2$cluster)
+
+# Fresh y Detergents_Paper
+ plot(customers_data2[c(3,7)], col=k2$cluster)
+
+ # Fresh y Delicassen
+ plot(customers_data2[c(3,8)], col=k2$cluster)
+ 
+
+```
+
+
+
+como primer método se usará Hierarchical clustering el cual agrupa los datos basándose en la distancia entre cada uno de los datos. Con este método no es necesario indicar el número de clusters ya que lo hace de manera jerarquica
+
+```{r message= FALSE, warning=FALSE}
+
+#Definición del Hierarchical clustering con método de aglomeración completo. Conexión completa: La distancia se mide entre los dos puntos más lejanos de cada clúster
+cluster_hc <- hclust(d = dist(x = customers_data_scale, method = "euclidean"),
+                               method = "complete")
+cluster_hc
+
+#Se grafica el cluster definido
+fviz_dend(x = cluster_hc, k = 2, cex = 0.6)
+
+
+```
+
+
+> Usando el Método K-medoids clustering - Partitioning Around Medoids (PAM)
+
+Este método es parecido al K-Means la diferencia es que, en K-medoids, cada cluster está representado por una observación presente en el cluster (medoid), mientras que en K-means cada cluster está representado por su centroide, que se corresponde con el promedio de todas las observaciones del cluster pero con ninguna en particular.
+
+medoid es: elemento dentro de un cluster cuya distancia (diferencia) promedio entre él y todos los demás elementos del mismo cluster es lo menor posible
+
+El hecho de utilizar medoids en lugar de centroides hace de K-medoids un método más robusto que K-means, viéndose menos afectado por outliers o ruido.
+
+```{r message= FALSE, warning=FALSE}
+
+#Se genera el cluster PAM con 2
+cluster_pam <- pam(x = customers_data2, k = 2, metric = "manhattan")
+cluster_pam
+
+#Se grafica el cluster definido
+fviz_cluster(object = cluster_pam, data = customers_data_scale)
+
+```
+
+
+
+```{r message= FALSE, warning=FALSE}
+#Descripción de los dos clusters
+k2
+
+```
+# Resolución del problema. A partir de los resultados obtenidos, ¿cuáles son las conclusiones? ¿Los resultados permiten responder al problema?
+
+
+Respecto a las graficas presentadas anteriormente y los datos arrojados por cada cluster podría definir dos asociaciones:
+
+1. Clientes con preferencias por productos frescos.
+2. Clientes sin preferencias definidas.
+
+Ahora se mira detalladamente la información de los dos clusters
+
+
+Se puede concluir que la variable Fresh es la que más diferencia presenta entre el cluster 1 y 2 ya que para el 1 su media es 5283.417 y para el 2 es 20168.853 y una diferencia más pequeña para la variable Delicassen 893.0965 y 1218.3684 respectivamente.
+
+
+Adicionalmente tenemos una medida de suma de cuadrados del 42% la cual no es muy buena ya que son pocas las variables que hacen una clara discriminación entre los clusters. 
+
+
+```{r message= FALSE, warning=FALSE}
+#Generación del archivo csv con la limpieza de datos
+
+write.csv(customers_data2, file="Wholesale customers data2.csv")
+
+```
+
+
+# referencias:
+
+Calvo M, Subirats L, Pérez D (2019). Introducción a la limpieza y análisis de los datos. Editorial UOC.
+
+Squire, Megan (2015). Clean Data. Packt Publishing Ltd.
+
