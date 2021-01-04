@@ -12,7 +12,7 @@ Para la realización de este ejercicio se usará un conjunto de datos que contie
 
 Se evidencia que son datos que se pueden trabajar en problemas no supervisados con métodos de agregación (clusters) ya que no cuentan con una categorización o clase.
 
-Fuente. https://www.kaggle.com/binovi/wholesale-customers-data-set
+Fuente: https://www.kaggle.com/binovi/wholesale-customers-data-set
 
 
 ## Ficheros del Repositorio
