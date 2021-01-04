@@ -234,7 +234,7 @@ color: #d14;
   div.column{display: inline-block; vertical-align: top; width: 50%;}
   div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
   ul.task-list{list-style: none;}
-      </style>
+    </style>
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css">
@@ -280,6 +280,7 @@ h6 {
   text-align: left;
 }
 </style>
+
 
 
 
@@ -521,6 +522,7 @@ head(customers_data_scale)</code></pre>
 <h1><span class="header-section-number">4</span> Análisis de los datos.</h1>
 <div id="selección-de-los-grupos-de-datos-que-se-quieren-analizarcomparar-planificación-de-los-análisis-a-aplicar." class="section level2">
 <h2><span class="header-section-number">4.1</span> Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar).</h2>
+<p>En primer lugar, se realizará un resumen estadístico sobre las variables que se van a utilizar:</p>
 <pre class="r"><code>summary(customers_data)</code></pre>
 <pre><code>##     Channel          Region          Fresh             Milk      
 ##  Min.   :1.000   Min.   :1.000   Min.   :     3   Min.   :   55  
@@ -536,10 +538,73 @@ head(customers_data_scale)</code></pre>
 ##  Mean   : 7951   Mean   : 3071.9   Mean   : 2881.5   Mean   : 1524.9  
 ##  3rd Qu.:10656   3rd Qu.: 3554.2   3rd Qu.: 3922.0   3rd Qu.: 1820.2  
 ##  Max.   :92780   Max.   :60869.0   Max.   :40827.0   Max.   :47943.0</code></pre>
+<p>Seguidamente, se seleccionaran los grupos del conjunto de datos que pueden resultar interesantes para analizar/comparar:</p>
+<pre class="r"><code># Agrupación por la Región dónde se han vendido los productos (variable Region)
+
+customers_data.Vendido_en_Lisboa &lt;- customers_data[customers_data$Region == &quot;1&quot;,]
+customers_data.Vendido_en_Oporto &lt;- customers_data[customers_data$Region == &quot;2&quot;,]
+customers_data.Vendido_en_Otros &lt;- customers_data[customers_data$Region == &quot;3&quot;,]
+
+
+# Agrupación por Ventas al por Mayor o al por Menor (variable Channel)
+
+customers_data.porMayor &lt;- customers_data[customers_data$Channel == &quot;1&quot;,]
+customers_data.porMenor &lt;- customers_data[customers_data$Channel == &quot;2&quot;,]</code></pre>
 <p>Una vez terminada la fase de análisis y preparación de los datos. En esta fase se usaran diferentes métodos para identificar el número de clusters más óptimo, Se usará el metodo de la silueta media,</p>
 </div>
 <div id="comprobación-de-la-normalidad-y-homogeneidad-de-la-varianza." class="section level2">
 <h2><span class="header-section-number">4.2</span> Comprobación de la normalidad y homogeneidad de la varianza.</h2>
+<p>Para la comprobación de que los valores de las variables cuantitativas están distribuidas normalmente, se hará uso de la prueba de normalidad de Anderson-Darling.</p>
+<p>De esta forma se comprueba que cada variable obtiene un p_valor superior a alpha = 0.05. Si se cumple esta condición, se considerará que una determinada variable sigue una distribución normal.</p>
+<pre class="r"><code>library (nortest)
+
+alpha = 0.05
+
+col.names = colnames (customers_data)
+
+for (j in 1:ncol (customers_data)) {
+  if (j == 1) cat (&quot;Variables que no siguen una distribución normal:\n&quot;)
+  if (is.integer (customers_data [ , j]) | is.numeric (customers_data [ , j])) {
+    p_val = ad.test (customers_data [ , j]) $p.value
+    if (p_val &lt; alpha) {
+      cat (col.names[j])
+
+      # Format output
+      if (j &lt; ncol (customers_data) - 1) cat (&quot;, &quot;)
+      if (j %% 3 == 0) cat (&quot;\n&quot;)
+    }
+  }
+}</code></pre>
+<pre><code>## Variables que no siguen una distribución normal:
+## Channel, Region, Fresh, 
+## Milk, Grocery, Frozen, 
+## Detergents_PaperDelicassen</code></pre>
+<p>El siguiente paso será comprobar la homogeinidad de varianzas. Para ello, se utilizará la aplicación de test de Fligner-Killeen. Se estudiará la homogeinidad entre diferentes grupos formados por la region y el tipo de venta (channel). También se puede estudiar la homogeinidad entre las distintas variables del tipo de alimentos.</p>
+<pre class="r"><code>fligner.test(Channel ~ Region, data = customers_data)</code></pre>
+<pre><code>## 
+##  Fligner-Killeen test of homogeneity of variances
+## 
+## data:  Channel by Region
+## Fligner-Killeen:med chi-squared = 4.3393, df = 2, p-value = 0.1142</code></pre>
+<pre class="r"><code>fligner.test(Fresh ~ Milk, data = customers_data)</code></pre>
+<pre><code>## 
+##  Fligner-Killeen test of homogeneity of variances
+## 
+## data:  Fresh by Milk
+## Fligner-Killeen:med chi-squared = 439, df = 420, p-value = 0.2518</code></pre>
+<pre class="r"><code>fligner.test(Grocery ~ Frozen, data = customers_data)</code></pre>
+<pre><code>## 
+##  Fligner-Killeen test of homogeneity of variances
+## 
+## data:  Grocery by Frozen
+## Fligner-Killeen:med chi-squared = 439, df = 425, p-value = 0.3093</code></pre>
+<pre class="r"><code>fligner.test(Detergents_Paper ~ Delicassen, data = customers_data)</code></pre>
+<pre><code>## 
+##  Fligner-Killeen test of homogeneity of variances
+## 
+## data:  Detergents_Paper by Delicassen
+## Fligner-Killeen:med chi-squared = 408.81, df = 402, p-value = 0.3965</code></pre>
+<p>Como se puede apreciar, todas las comparaciones superan el p_valor de 0.05, por lo que se entiende que la hipótesis de las varianzas son homogéneas.</p>
 </div>
 <div id="aplicación-de-pruebas-estadísticas-para-comparar-los-grupos-de-dato-y-representación-de-los-resultados-a-partir-de-tablas-y-gráficas." class="section level2">
 <h2><span class="header-section-number">4.3</span> Aplicación de pruebas estadísticas para comparar los grupos de dato y Representación de los resultados a partir de tablas y gráficas.</h2>
@@ -849,7 +914,7 @@ write.csv(customers_data2, file=&quot;Wholesale customers data2.csv&quot;)</code
 
 // add bootstrap table styles to pandoc tables
 function bootstrapStylePandocTables() {
-  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
 }
 $(document).ready(function () {
   bootstrapStylePandocTables();
