@@ -1,6 +1,6 @@
 ---
-title: 'Tipologia y ciclo de vida de los datos: PRAC2 -  integración, limpieza, validación y análisis'
-author: "Autor: Leidy Liliana Torres Bolívar & Jose Carlos Sola Verdú"
+title: 'Tipologia y Ciclo de Vida de los Datos: PRAC2 - Integración, Limpieza, Validación y Análisis'
+author: "Autores: Leidy Liliana Torres Bolívar & Jose Carlos Sola Verdú"
 date: "Diciembre 2020"
 output:
   html_document:
@@ -145,9 +145,14 @@ head(customers_data_scale)
 
 ## Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar).
 
+### En primer lugar, se realizará un resumen estadístico sobre las variables que se van a utilizar:
+
 ```{r message= FALSE, warning=FALSE}  
 summary(customers_data)
 ```
+
+Seguidamente, se seleccionaran los grupos del conjunto de datos que pueden resultar interesantes para analizar/comparar:
+
 
 
 Una vez terminada la fase de análisis y preparación de los datos. En esta fase se usaran diferentes métodos para identificar el número de clusters más óptimo, Se usará el metodo de la silueta media, 
