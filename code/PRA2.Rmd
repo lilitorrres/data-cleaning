@@ -1,5 +1,5 @@
 ---
-title: 'Tipologia y ciclo de vida de los datos: PRAC2 -  integración, limpieza, validación y análisis'
+title: 'Tipologia y Ciclo de Vida de los Datos: PRAC2 - Integración, Limpieza, Validación y Análisis'
 author: "Autor: Leidy Liliana Torres Bolívar & Jose Carlos Sola Verdú"
 date: "Diciembre 2020"
 output:
@@ -145,16 +145,74 @@ head(customers_data_scale)
 
 ## Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar).
 
+### En primer lugar, se realizará un resumen estadístico sobre las variables que se van a utilizar:
+
 ```{r message= FALSE, warning=FALSE}  
 summary(customers_data)
 ```
 
+Seguidamente, se seleccionaran los grupos del conjunto de datos que pueden resultar interesantes para analizar/comparar:
+
+```{r message= FALSE, warning=FALSE}  
+
+# Agrupación por la Región dónde se han vendido los productos (variable Region)
+
+customers_data.Vendido_en_Lisboa <- customers_data[customers_data$Region == "1",]
+customers_data.Vendido_en_Oporto <- customers_data[customers_data$Region == "2",]
+customers_data.Vendido_en_Otros <- customers_data[customers_data$Region == "3",]
+
+
+# Agrupación por Ventas al por Mayor o al por Menor (variable Channel)
+
+customers_data.porMayor <- customers_data[customers_data$Channel == "1",]
+customers_data.porMenor <- customers_data[customers_data$Channel == "2",]
+
+```
 
 Una vez terminada la fase de análisis y preparación de los datos. En esta fase se usaran diferentes métodos para identificar el número de clusters más óptimo, Se usará el metodo de la silueta media, 
 
 ## Comprobación de la normalidad y homogeneidad de la varianza.
 
+Para la comprobación de que los valores de las variables cuantitativas están distribuidas normalmente, se hará uso de la prueba de normalidad de Anderson-Darling.
 
+De esta forma se comprueba que cada variable obtiene un p_valor superior a alpha = 0.05. Si se cumple esta condición, se considerará que una determinada variable sigue una distribución normal.
+
+```{r message= FALSE, warning=FALSE}
+
+library (nortest)
+
+alpha = 0.05
+
+col.names = colnames (customers_data)
+
+for (j in 1:ncol (customers_data)) {
+  if (j == 1) cat ("Variables que no siguen una distribución normal:\n")
+  if (is.integer (customers_data [ , j]) | is.numeric (customers_data [ , j])) {
+    p_val = ad.test (customers_data [ , j]) $p.value
+    if (p_val < alpha) {
+      cat (col.names[j])
+
+      # Format output
+      if (j < ncol (customers_data) - 1) cat (", ")
+      if (j %% 3 == 0) cat ("\n")
+    }
+  }
+}
+
+```
+
+El siguiente paso será comprobar la homogeinidad de varianzas. Para ello, se utilizará la aplicación de test de Fligner-Killeen. Se estudiará la homogeinidad entre diferentes grupos formados por la region y el tipo de venta (channel). También se puede estudiar la homogeinidad entre las distintas variables del tipo de alimentos.
+
+```{r message= FALSE, warning=FALSE}
+
+fligner.test(Channel ~ Region, data = customers_data)
+fligner.test(Fresh ~ Milk, data = customers_data)
+fligner.test(Grocery ~ Frozen, data = customers_data)
+fligner.test(Detergents_Paper ~ Delicassen, data = customers_data)
+
+```
+
+Como se puede apreciar, todas las comparaciones superan el p_valor de 0.05, por lo que se entiende que la hipótesis de las varianzas son homogéneas.
 
 ## Aplicación de pruebas estadísticas para comparar los grupos de dato y Representación de los resultados a partir de tablas y gráficas.
 
